@@ -26,7 +26,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // await StorageInitializer.init();
+  await StorageInitializer.init();
 
   runApp(
     UncontrolledProviderScope(
