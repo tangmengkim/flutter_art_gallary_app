@@ -11,23 +11,31 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^2.0.0
   dio: ^5.4.0                 
-  flutter_riverpod: ^2.5.1    
+  flutter_riverpod: ^3.0.3
+  riverpod_annotation: ^3.0.0
   go_router: ^13.2.0          
-  freezed_annotation: ^2.4.1  
+  freezed_annotation: ^3.0.0  
   retrofit: ^4.1.0            
   skeletonizer: ^1.0.0        
   flutter_screenutil: ^5.9.3
   fluttertoast: ^10.0.2
+  pretty_dio_logger: ^1.4.0
+  cached_network_image: ^4.0.3
+  json_annotation: ^4.9.0
+  hive_ce: ^2.21.0
+  hive_ce_flutter: ^2.4.0
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0       
-  build_runner: ^2.4.9        
-  freezed: ^2.5.2             
-  json_serializable: ^6.8.0   
-  retrofit_generator: ^8.1.0  
-  hive_ce_generator: ^1.0.0   
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.9
+  freezed: ^3.2.0
+  json_serializable: ^6.8.0
+  retrofit_generator: any
+  riverpod_generator: ^3.0.0
+  hive_ce_generator: ^1.10.0
 
 flutter:
   uses-material-design: true

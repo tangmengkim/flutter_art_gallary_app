@@ -43,3 +43,55 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+
+# -------------------------------------------------------------------------
+# Flutter / Dart Defaults
+# -------------------------------------------------------------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.sandbox/
+build/
+
+# -------------------------------------------------------------------------
+# Code Generated Files (Remove if you want to track them)
+# -------------------------------------------------------------------------
+*.g.dart
+*.freezed.dart
+
+
+# -------------------------------------------------------------------------
+# Android Related
+# -------------------------------------------------------------------------
+.gradle/
+local.properties
+**/android/**/GeneratedPluginRegistrant.java
+
+# -------------------------------------------------------------------------
+# iOS/macOS Related
+# -------------------------------------------------------------------------
+**/ios/.generated/
+**/ios/**/DerivedData/
+**/ios/**/Pods/
+**/ios/**/GeneratedPluginRegistrant.h
+**/ios/**/GeneratedPluginRegistrant.m
+**/ios/**/Flutter/Flutter.podspec
+**/ios/**/Flutter/Generated.xcconfig
+**/ios/**/Flutter/flutter_export_environment.sh
+.symlinks/
+
+# -------------------------------------------------------------------------
+# IDEs and Tools
+# -------------------------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+
+/android/keystore.jks
+/android/key.properties
