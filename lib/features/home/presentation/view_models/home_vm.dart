@@ -7,7 +7,6 @@ import 'package:art_gallary/features/home/data/models/artwork_model.dart';
 import 'package:art_gallary/features/home/data/repository/artwork_repo.dart';
 import 'package:art_gallary/http/app_failure.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'home_vm.freezed.dart';
@@ -23,6 +22,7 @@ abstract class HomeState with _$HomeState {
     @Default(true) bool hasMore,
     @Default(1) int page,
     @Default(<ArtworkModel>[]) List<ArtworkModel> artworks,
+    @Default({}) Map<String, ArtworkModel> artworkDetails, // Detail Cache
     @Default(-1) int selectedArtworkIndex,
     String? error,
   }) = _HomeState;
@@ -38,7 +38,7 @@ class HomeViewModel extends _$HomeViewModel {
 
   @override
   HomeState build() {
-    Future.microtask(_loadCachedArtworks);
+    // Future.microtask(_loadCachedArtworks);
     ref.onDispose(_stopAutoRetry);
     return const HomeState();
   }
@@ -65,7 +65,7 @@ class HomeViewModel extends _$HomeViewModel {
       );
     }
 
-    await _fetchArtworks(page: 1);
+    await _fetchArtworks(page: 2); // skip duplicate image page 1
   }
 
   void selectArtwork(ArtworkModel artwork) {
@@ -77,6 +77,8 @@ class HomeViewModel extends _$HomeViewModel {
     }
     state = state.copyWith(selectedArtworkIndex: index);
   }
+
+  int get getSelectedArtworkIndex => state.selectedArtworkIndex;
 
   /// Paginate next set of items
   Future<void> loadMore({bool silent = false}) async {
@@ -94,66 +96,114 @@ class HomeViewModel extends _$HomeViewModel {
   // ─── PRIVATE FETCH LOGIC ───────────────────────────────────────────────────
 
   Future<void> _fetchArtworks({
-    required int page,
-    bool isPagination = false,
-  }) async {
-    try {
-      final response = await _repository.getArtList(
-        queries: {'page': page, 'limit': _pageSize},
-      );
+  required int page,
+  bool isPagination = false,
+}) async {
+  try {
+    final response = await _repository.getArtList(
+      queries: {'page': page, 'limit': _pageSize},
+    );
 
-      if (!ref.mounted) return;
+    if (!ref.mounted) return;
 
-      _stopAutoRetry();
+    _stopAutoRetry();
 
-      final List<ArtworkModel> updatedList;
-      if (isPagination) {
-        final existingIds = state.artworks.map((art) => art.id).toSet();
-        final uniqueNewItems = response.where(
-          (art) => !existingIds.contains(art.id),
+    final List<ArtworkModel> updatedList;
+    if (isPagination) {
+      if (response.isEmpty) {
+        // If empty response, update pagination flags without re-allocating artwork list
+        state = state.copyWith(
+          hasMore: false,
+          isLoadMore: false,
+          error: null,
         );
-        updatedList = [...state.artworks, ...uniqueNewItems];
-      } else {
-        updatedList = response;
+        return;
       }
 
-      state = state.copyWith(
-        artworks: updatedList,
-        page: page,
-        hasMore: response.length >= _pageSize,
-        isLoading: false,
-        isRefreshing: false,
-        isLoadMore: false,
-        isOffline: false,
-        error: null,
-      );
-      try {
-        await LocalData().put<List<ArtworkModel>>(
-          StorageRegistry.artworkBox,
-          StorageKey.artworkList,
-          updatedList,
-        );
+      final existingIds = state.artworks.map((art) => art.id).toSet();
+      final uniqueNewItems = response.where((art) => !existingIds.contains(art.id));
 
-        final box = Hive.box(StorageRegistry.artworkBox);
+      // No actual new items returned
+      if (uniqueNewItems.isEmpty) {
+  state = state.copyWith(
+    hasMore: false,
+    isLoadMore: false,
+    isLoading: false,
+    isRefreshing: false,
+    error: null,
+  );
+  return;
+}
 
-        log('Saved artworks: ${updatedList.length}');
-        log('Hive keys: ${box.keys.toList()}');
-        log(
-          'Hive stored count: '
-          '${(box.get(StorageKey.artworkList) as List?)?.length ?? 0}',
-        );
-      } catch (e) {
-        log('Failed to cache artworks locally: $e');
-      }
-    } catch (e, st) {
-      _handleError(e, st);
-      _loadCachedArtworks();
+      updatedList = List.of(state.artworks)..addAll(uniqueNewItems);
+    } else {
+      updatedList = response;
+    }
+
+    // Single State Update for successful fetch
+    state = state.copyWith(
+      artworks: updatedList,
+      page: page,
+      hasMore: response.length >= _pageSize,
+      isLoading: false,
+      isRefreshing: false,
+      isLoadMore: false,
+      isOffline: false,
+      error: null,
+    );
+
+    // Safe local caching (isolated from catch block so it doesn't trigger retry state)
+    _cacheArtworksLocally(updatedList);
+
+  } catch (e, st) {
+    if (!ref.mounted) return;
+    
+    _handleError(e, st);
+
+    // Only fallback to disk cache if we don't already have in-memory items
+    if (state.artworks.isEmpty) {
+      await _loadCachedArtworks();
     }
   }
+}
+
+void _cacheArtworksLocally(List<ArtworkModel> list) {
+  unawaited(
+    LocalData()
+        .put<List<ArtworkModel>>(
+          StorageRegistry.artworkBox,
+          StorageKey.artworkList,
+          list,
+        )
+        .catchError((e) {
+      log('Failed to cache artworks locally: $e');
+    }),
+  );
+}
+
+  Future<void> fetchArtworkDetail(String artworkId) async {
+
+  try {
+    final response = await _repository.getArtDetail(id: artworkId);
+    if (!ref.mounted) return;
+
+
+      state = state.copyWith(
+        artworkDetails: {
+          ...state.artworkDetails,
+          artworkId: response,
+        },
+      );
+    
+  } catch (e) {
+    log('Failed to fetch detail for $artworkId: $e');
+  } finally {
+
+  }
+}
 
   // -- Cached Artworks Management
   Future<void> _loadCachedArtworks() async {
-    print('========Attempting to load cached artworks...');
     if (_cacheLoaded || !ref.mounted) return;
 
     _cacheLoaded = true;
@@ -163,13 +213,12 @@ class HomeViewModel extends _$HomeViewModel {
       StorageKey.artworkList,
       defaultValue: [],
     );
-    print('========Loaded cached artworks: ${cachedArtworks?.length ?? 0}');
-    if (cachedArtworks == []) return;
+    if (cachedArtworks == null || cachedArtworks.isEmpty) return;
 
     state = state.copyWith(
-      artworks: cachedArtworks ?? [],
+      artworks: cachedArtworks,
       isLoading: false,
-      isOffline: true,
+      // isOffline: true,
       error: null,
     );
   }

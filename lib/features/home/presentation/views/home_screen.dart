@@ -1,5 +1,9 @@
+import 'dart:math';
+
+import 'package:art_gallary/core/constants/scroll_provider.dart';
 import 'package:art_gallary/features/home/data/models/artwork_model.dart';
 import 'package:art_gallary/features/home/presentation/view_models/home_vm.dart';
+import 'package:art_gallary/features/home/presentation/widgets/offline_banner_sliver.dart';
 import 'package:art_gallary/theme/app_colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -17,18 +21,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
-  final ScrollController _scrollController = ScrollController();
-
-  static const _ink = Color(0xFF292824);
-  static const _muted = Color(0xFF82796F);
-  static const _accent = Color(0xFF9A7653);
-
+  late ScrollController _scrollController;
   bool shouldLoadMore = false;
 
   @override
   void initState() {
     super.initState();
-
+    _scrollController = ref.read(homeScrollControllerProvider);
     _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,16 +38,11 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onScroll() {
-    // 1. Fast-fail if not attached or already processing a load
     if (!_scrollController.hasClients || shouldLoadMore) return;
 
-    final position = _scrollController.position;
-
-    // 2. Trigger ONLY when user is within 500px of the bottom
-    if (position.extentAfter <= 500) {
+    if (_scrollController.position.extentAfter <= 500) {
       final state = ref.read(homeViewModelProvider);
 
-      // 3. Do not trigger if loading, offline, error present, or no more data
       if (state.isLoading ||
           state.isRefreshing ||
           state.isLoadMore ||
@@ -59,183 +53,183 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
       }
 
       shouldLoadMore = true;
-
-      // 4. Use whenComplete to safely reset the flag regardless of success/error
       ref.read(homeViewModelProvider.notifier).loadMore().whenComplete(() {
-        if (mounted) {
-          shouldLoadMore = false;
-        }
+        if (mounted) shouldLoadMore = false;
       });
     }
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_onScroll)
-      ..dispose();
+    _scrollController.removeListener(_onScroll);
     super.dispose();
   }
 
+  void _handleArtworkTap(ArtworkModel artwork) {
+    ref.read(homeViewModelProvider.notifier).selectArtwork(artwork);
+    widget.onArtworkTap?.call(artwork);
+  }
+
+  // Keep as a const or static variable outside the build method
+  static const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    crossAxisSpacing: 14,
+    mainAxisSpacing: 18,
+    childAspectRatio: 10 / 16,
+  );
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(homeViewModelProvider);
+    final activeScrollController = ref.watch(homeScrollControllerProvider);
 
-    final gridCrossAxisCount = MediaQuery.sizeOf(context).width >= 600 ? 3 : 2;
+    final artworks = ref.watch(homeViewModelProvider.select((s) => s.artworks));
+
+    final isLoading = ref.watch(
+      homeViewModelProvider.select((s) => s.isLoading),
+    );
+
+    final error = ref.watch(homeViewModelProvider.select((s) => s.error));
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        bottom: false,
-        child: Expanded(
-          child: RefreshIndicator(
-            color: _accent,
-            onRefresh: () => ref
-                .read(homeViewModelProvider.notifier)
-                .load(refresh: true),
-            child: CustomScrollView(
-              controller: _scrollController,
-              scrollCacheExtent: const ScrollCacheExtent.viewport(
-                2,
-              ), // lazy load 5 viewport to reduce memory usage
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _buildHeader()),
-                if (state.isLoading && state.artworks.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: CircularProgressIndicator(color: _accent),
-                    ),
-                  )
-                else if (state.error != null && state.artworks.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildError(state.error!),
-                  )
-                else if (state.artworks.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: Text('No artwork available')),
-                  )
-                else ...[
-                  if (state.artworks.isNotEmpty)
+      body: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              edgeOffset: 195,
+              displacement: 10,
+              color: const Color(0xFF9A7653),
+              onRefresh: () =>
+                  ref.read(homeViewModelProvider.notifier).load(refresh: true),
+              child: CustomScrollView(
+                controller: activeScrollController,
+                scrollCacheExtent: const ScrollCacheExtent.viewport(2),
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  _HeaderSliverAppBar(scrollController: _scrollController),
+
+                  // Offline banner watches state internally
+                  const OfflineBannerSliver(),
+
+                  if (isLoading && artworks.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF9A7653),
+                        ),
+                      ),
+                    )
+                  else if (error != null && artworks.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _buildError(error),
+                    )
+                  else if (artworks.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: Text('No artwork available')),
+                    )
+                  else ...[
                     SliverToBoxAdapter(
-                      child: _buildFeatured(state.artworks.first),
-                    ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 14.h),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Explore artworks',
-                            style: TextStyle(
-                              fontSize: 21.spMax,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${state.artworks.length} works',
-                            style: TextStyle(
-                              color: _muted,
-                              fontSize: 12.spMax,
-                            ),
-                          ),
-                        ],
+                      child: _buildFeatured(
+                        artworks[Random().nextInt(artworks.length)],
                       ),
                     ),
-                  ),
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate((
-                        context,
-                        index,
-                      ) {
-                        final artwork = state.artworks[index];
-        
-                        return _ArtworkCard(
-                          artwork: artwork,
-                          index: index,
-                          onTap: () {
-                            ref.read(homeViewModelProvider.notifier).selectArtwork(artwork);
-                            widget.onArtworkTap?.call(artwork);
-                          },
-                        );
-                      }, childCount: state.artworks.length),
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: gridCrossAxisCount,
-                            crossAxisSpacing: 14.w,
-                            mainAxisSpacing: 18.h,
-                            childAspectRatio: 10 / 16,
-                          ),
+
+                    // Count Header
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 14.h),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Explore artworks',
+                              style: TextStyle(
+                                fontSize: 21.spMax,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF292824),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${artworks.length} works',
+                              style: TextStyle(
+                                color: const Color(0xFF82796F),
+                                fontSize: 12.spMax,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.only(bottom: 100),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildPaginationFooter(state),
+
+                    // GRID BUILDER (Isolated from pagination state changes)
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      sliver: SliverGrid.builder(
+                        itemCount: artworks.length,
+                        gridDelegate: _gridDelegate,
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: true,
+                        addSemanticIndexes: false,
+                        itemBuilder: (context, index) {
+                          final artwork = artworks[index];
+                          return _ArtworkCard(
+                            key: ValueKey(artwork.id ?? index),
+                            artwork: artwork,
+                            index: index,
+                            onTap: () => _handleArtworkTap(artwork),
+                          );
+                        },
+                      ),
                     ),
-                  ),
+
+                    // Pagination footer watches state internally
+                    const SliverPadding(
+                      padding: EdgeInsets.only(bottom: 100),
+                      sliver: SliverToBoxAdapter(
+                        child: _PaginationFooterWidget(),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 12.h),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ART JOURNAL',
-                  style: TextStyle(
-                    color: _accent,
-                    fontSize: 24.spMax,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.5,
-                  ),
-                ),
-                SizedBox(height: 7.h),
-                Text(
-                  'Find your inspiration.',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 16.spMax,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.7,
-                  ),
-                ),
-                SizedBox(height: 5.h),
-                Text(
-                  'Discover beautiful photography from around the world.',
-                  style: TextStyle(color: _muted, fontSize: 12.spMax),
-                ),
-              ],
+  Widget _buildError(String message) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 48,
+              color: Color(0xFF82796F),
             ),
-          ),
-          Container(
-            width: 44.w,
-            height: 44.w,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8DFD1),
-              shape: BoxShape.circle,
+            SizedBox(height: 12.h),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF292824)),
             ),
-            child: const Icon(Icons.palette_outlined, color: _ink),
-          ),
-        ],
+            SizedBox(height: 16.h),
+            FilledButton(
+              onPressed: () => ref.read(homeViewModelProvider.notifier).load(),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF292824),
+              ),
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -244,9 +238,9 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
       child: GestureDetector(
-        onTap: () => widget.onArtworkTap?.call(artwork),
+        onTap: () => _handleArtworkTap(artwork),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
               CachedNetworkImage(
@@ -321,44 +315,35 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+}
 
-  Widget _buildError(String message) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 48, color: _muted),
-            SizedBox(height: 12.h),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _ink),
-            ),
-            SizedBox(height: 16.h),
-            FilledButton(
-              onPressed: () => ref.read(homeViewModelProvider.notifier).load(),
-              style: FilledButton.styleFrom(backgroundColor: _ink),
-              child: const Text('Try again'),
-            ),
-          ],
-        ),
-      ),
+// Prevents parent & grid rebuilds
+class _PaginationFooterWidget extends ConsumerWidget {
+  const _PaginationFooterWidget();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoadMore = ref.watch(
+      homeViewModelProvider.select((s) => s.isLoadMore),
     );
-  }
+    final hasMore = ref.watch(homeViewModelProvider.select((s) => s.hasMore));
+    final error = ref.watch(homeViewModelProvider.select((s) => s.error));
+    final hasArtworks = ref.watch(
+      homeViewModelProvider.select((s) => s.artworks.isNotEmpty),
+    );
 
-  Widget _buildPaginationFooter(HomeState state) {
-    if (state.isLoadMore) {
+    if (isLoadMore) {
       return Padding(
         padding: EdgeInsets.all(20.h),
-        child: const Center(child: CircularProgressIndicator(color: _accent)),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.secondary),
+        ),
       );
     }
 
-    if (state.error != null && state.artworks.isNotEmpty) {
+    if (error != null && hasArtworks) {
       return Center(
-        child: Container(
+        child: SizedBox(
           height: 80.h,
           child: TextButton(
             onPressed: () =>
@@ -369,13 +354,13 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    if (!state.hasMore) {
+    if (!hasMore) {
       return Padding(
         padding: EdgeInsets.all(24.h),
         child: const Center(
           child: Text(
             "You've reached the end for now.",
-            style: TextStyle(color: _muted),
+            style: TextStyle(color: Color(0xFF82796F)),
           ),
         ),
       );
@@ -385,8 +370,128 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
+class _HeaderSliverAppBar extends StatelessWidget {
+  final ScrollController scrollController;
+  const _HeaderSliverAppBar({required this.scrollController});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverAppBar(
+      backgroundColor: AppColors.backgroundColor,
+      surfaceTintColor: Colors.transparent,
+      elevation: 11,
+      scrolledUnderElevation: 0.5,
+      pinned: true,
+      expandedHeight: 150,
+      automaticallyImplyLeading: false,
+      titleSpacing: 20.w,
+      title: GestureDetector(
+        onTap: () {
+          if (scrollController.hasClients) {
+            scrollController.animateTo(
+              0.0,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+        child: const Text(
+          'ART GALLERY',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.2,
+          ),
+        ),
+      ),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final collapsed = constraints.maxHeight <= kToolbarHeight + 85.h;
+
+          return FlexibleSpaceBar(
+            collapseMode: CollapseMode.pin,
+            background: Container(
+              padding: EdgeInsets.fromLTRB(
+                40.w,
+                MediaQuery.paddingOf(context).top,
+                20.w,
+                12.h,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.8),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: collapsed ? 0 : 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'WELCOME TO ART GALLERY',
+                      style: TextStyle(
+                        color: const Color(0xFF82796F),
+                        fontSize: 10.spMax,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: 'Discover art.'),
+                          TextSpan(
+                            text: ' Find inspiration.',
+                            style: TextStyle(
+                              color: const Color(0xFF9A7653),
+                              fontStyle: FontStyle.italic,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 20.spMax,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: TextStyle(
+                        color: const Color(0xFF292824),
+                        fontSize: 28.spMax,
+                        height: 1.12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                      ),
+                    ),
+                    SizedBox(height: 5.h),
+                    Text(
+                      'Explore beautiful images and discover your next favorite.',
+                      maxLines: 2,
+                      style: TextStyle(
+                        color: const Color(0xFF82796F),
+                        fontSize: 13.spMax,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _ArtworkCard extends ConsumerWidget {
-  const _ArtworkCard({required this.artwork, required this.onTap, required this.index});
+  const _ArtworkCard({
+    super.key,
+    required this.artwork,
+    required this.onTap,
+    required this.index,
+  });
 
   final ArtworkModel artwork;
   final VoidCallback onTap;
@@ -397,23 +502,24 @@ class _ArtworkCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final screenHeight = MediaQuery.sizeOf(context).height;
-    final vm = ref.read(homeViewModelProvider.notifier);
-    final isSelected = vm.getSelectedArtworkIndex == index;
-    return RepaintBoundary(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Hero(
-                tag: 'artwork-${artwork.id}-$index' + (!isSelected ? 'not-selected' : ''),
+    final screenHeight = MediaQuery.of(context).size.height;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Hero(
+              transitionOnUserGestures: true,
+              tag: 'artwork-${artwork.id}-$index',
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
                 child: CachedNetworkImage(
                   imageUrl: artwork.downloadUrl ?? '',
-                  // width: double.infinity,
                   memCacheHeight: screenHeight.toInt(),
-                  // memCacheWidth: screenWidth.toInt(),
                   fit: BoxFit.cover,
                   placeholder: (_, __) =>
                       Container(color: const Color(0xFFE7DED1)),
@@ -426,26 +532,26 @@ class _ArtworkCard extends ConsumerWidget {
                 ),
               ),
             ),
-            SizedBox(height: 9.h),
-            Text(
-              'Artwork #${artwork.id}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: _ink,
-                fontWeight: FontWeight.w700,
-                fontSize: 13.spMax,
-              ),
+          ),
+          SizedBox(height: 9.h),
+          Text(
+            'Artwork By ${artwork.author ?? 'Unknown'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _ink,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.spMax,
             ),
-            SizedBox(height: 3.h),
-            Text(
-              artwork.author ?? 'Unknown',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: _muted, fontSize: 11.spMax),
-            ),
-          ],
-        ),
+          ),
+          SizedBox(height: 3.h),
+          Text(
+            artwork.author ?? 'Unknown',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: _muted, fontSize: 11.spMax),
+          ),
+        ],
       ),
     );
   }

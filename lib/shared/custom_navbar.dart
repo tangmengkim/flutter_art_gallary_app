@@ -1,9 +1,11 @@
 import 'dart:math';
+import 'package:art_gallary/core/constants/scroll_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/app_colors.dart';
 
-class CustomBottomNavBar extends StatefulWidget {
+class CustomBottomNavBar extends ConsumerStatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemTapped;
 
@@ -14,10 +16,10 @@ class CustomBottomNavBar extends StatefulWidget {
   });
 
   @override
-  State<CustomBottomNavBar> createState() => _CustomBottomNavBarState();
+  ConsumerState<CustomBottomNavBar> createState() => _CustomBottomNavBarState();
 }
 
-class _CustomBottomNavBarState extends State<CustomBottomNavBar>
+class _CustomBottomNavBarState extends ConsumerState<CustomBottomNavBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -69,6 +71,23 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
     _endLeft = (toIndex * zoneWidth) + centerOffset;
 
     _animationController.forward(from: 0.0);
+  }
+
+  void _handleTabTap(int index) {
+    if (widget.selectedIndex == index) {
+      if (index == 0) {
+        final controller = ref.read(homeScrollControllerProvider);
+        if (controller.hasClients) {
+          controller.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    } else {
+      widget.onItemTapped(index);
+    }
   }
 
   @override
@@ -165,7 +184,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                         activeIcon: Icons.home_rounded,
                         inactiveIcon: Icons.home_outlined,
                         label: "Home",
-                        onTap: widget.onItemTapped,
+                        onTap: _handleTabTap,
                       ),
                     ),
                     Expanded(
@@ -175,7 +194,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                         activeIcon: Icons.bookmark_rounded,
                         inactiveIcon: Icons.bookmark_border_rounded,
                         label: "Saved",
-                        onTap: widget.onItemTapped,
+                        onTap: _handleTabTap,
                       ),
                     ),
                   ],
