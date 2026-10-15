@@ -1,6 +1,7 @@
 import 'package:art_gallary/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class AppTheme {
   AppTheme._();
@@ -20,13 +21,14 @@ class AppTheme {
         backButtonIconBuilder: (BuildContext context) {
           
           return Container(
-            margin: EdgeInsets.all(0),
+            margin: const EdgeInsets.all(0),
             alignment: Alignment.centerLeft,
-            padding: EdgeInsets.only(left: 8),
-            // color: Colors.red,
-            width: 35,
-            height: 30,
-            // child: SvgPicture.asset("assets/images/back_appbar_icon.svg"),
+            padding: EdgeInsets.only(left: 8.spMax),
+            child: Icon(
+              Icons.chevron_left_rounded,
+              size: 42.spMax,
+              color: AppColors.primary,
+            )
           );
         },
 
@@ -35,14 +37,14 @@ class AppTheme {
       // scaffoldBackgroundColor: AppColors.backgroundColor,
       appBarTheme: const AppBarTheme(
         systemOverlayStyle: SystemUiOverlayStyle(
-          // statusBarColor: Colors.white,             // Android background
-          statusBarColor: Colors.transparent,
+          statusBarColor: Colors.white,             // Android background
+          // statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,      
         ),
         actionsPadding: EdgeInsets.only(right: 24.0),
         centerTitle: false,
-        backgroundColor: Colors.transparent,
+        // backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
 

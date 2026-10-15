@@ -1,8 +1,9 @@
 import 'dart:developer';
 
-import 'package:art_gallary/features/home/presentation/views/art_detail_screen.dart';
+import 'package:art_gallary/features/home/data/models/artwork_model.dart';
+import 'package:art_gallary/features/home/presentation/views/artwork_detail_screen.dart';
 import 'package:art_gallary/features/home/presentation/views/home_screen.dart';
-import 'package:art_gallary/features/profile/presentation/views/profile_screen.dart';
+import 'package:art_gallary/features/saved/presentation/views/saved_detail_screen.dart';
 import 'package:art_gallary/features/saved/presentation/views/saved_screen.dart';
 import 'package:art_gallary/shared/main_scaffold.dart';
 
@@ -13,7 +14,7 @@ import 'package:go_router/go_router.dart';
 const pageSuccess = "/success";
 
 //HOME
-const pageHome = "/home_page";
+const pageHome = "/";
 
 //ART_DETAIL (Used as a relative sub-route path string, must NOT start or end with '/')
 const pageArtDetail = "art_detail_page";
@@ -21,15 +22,11 @@ const pageArtDetail = "art_detail_page";
 //SAVED
 const pageSaved = "/saved_page";
 
-//PROFILE
-const pageProfile = "/profile_page";
 
 class RouteUpdateListener {
   void Function(String currentPageUri) listener;
-  
-  RouteUpdateListener({
-    required this.listener
-  });
+
+  RouteUpdateListener({required this.listener});
 }
 
 class AppRouter {
@@ -43,30 +40,33 @@ class AppRouter {
 
   GoRouter? _router;
   List<AppPageConfig>? _listPages;
-  GoRouter get router =>  _router ?? getConfigRouter();
-  List<AppPageConfig> get listPages =>  _listPages ?? _getPageConfigList();
+  GoRouter get router => _router ?? getConfigRouter();
+  List<AppPageConfig> get listPages => _listPages ?? _getPageConfigList();
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _shellNavigatorKey =
+      GlobalKey<NavigatorState>();
   GlobalKey<NavigatorState> get shellNavigatorKey => _shellNavigatorKey;
   
   final List<RouteUpdateListener> _listeners = [];
   bool _isRouteListenerInitialized = false;
   String? _initialRoute;
 
-  GoRouter getConfigRouter(){
-    final cleanLayoutPageList = listPages.where((page) => page.isCleanLayout).toList();
+  GoRouter getConfigRouter() {
+    final cleanLayoutPageList = listPages
+        .where((page) => page.isCleanLayout)
+        .toList();
 
     log("_initialRoute : $_initialRoute");
     _router = GoRouter(
       navigatorKey: navigatorKey,
       routes: [
         StatefulShellRoute.indexedStack(
-          builder: (context, state, navigationShell) => MainScaffold(navigationShell: navigationShell),
+          builder: (context, state, navigationShell) =>
+              MainScaffold(navigationShell: navigationShell),
           branches: [
             buildHomeBranch(),
             buildSavedBranch(),
-            buildProfileBranch(),
-          ]
+          ],
         ),
         ..._mapBuilderToPageBuilder(cleanLayoutPageList),
       ],
@@ -75,7 +75,7 @@ class AppRouter {
     return _router!;
   }
 
-  List<AppPageConfig> _getPageConfigList(){
+  List<AppPageConfig> _getPageConfigList() {
     _listPages = [
       // AppPageConfig(
       //   path: pageHome,
@@ -88,52 +88,52 @@ class AppRouter {
 
   List<GoRoute> _mapBuilderToPageBuilder(List<AppPageConfig> pages) {
     return pages.map((page) {
-      return GoRoute( 
+      return GoRoute(
         path: page.path,
         name: page.name,
         pageBuilder: page.builder != null
             ? (context, state) => MaterialPage(
-              key: state.pageKey,
-              child: page.builder!(context, state)
-            )
+                key: state.pageKey,
+                child: page.builder!(context, state),
+              )
             : null,
       );
     }).toList();
   }
 
-  void setInitialRoute(String path){
+  void setInitialRoute(String path) {
     _initialRoute = path;
   }
 
-  String get currentPageUri => router.routeInformationProvider.value.uri.toString();
-  AppPageConfig get currentPage => listPages.singleWhere((page)=> page.path == currentPageUri);
+  String get currentPageUri =>
+      router.routeInformationProvider.value.uri.toString();
+  AppPageConfig get currentPage =>
+      listPages.singleWhere((page) => page.path == currentPageUri);
 
-  void _onUpdateRoute(){
-    for(final data in _listeners){
+  void _onUpdateRoute() {
+    for (final data in _listeners) {
       data.listener.call(currentPageUri);
     }
   }
-  
-  void _initRouteUpdateListener(){
+
+  void _initRouteUpdateListener() {
     _isRouteListenerInitialized = true;
     router.routerDelegate.addListener(_onUpdateRoute);
   }
 
-  void dispose(){
+  void dispose() {
     router.routerDelegate.removeListener(_onUpdateRoute);
     _isRouteListenerInitialized = false;
   }
 
-  void addRouteUpdateListener(void Function(String currentPageUri) listener){
-    if(!_isRouteListenerInitialized) _initRouteUpdateListener();
-    _listeners.add(
-      RouteUpdateListener(
-        listener: listener
-      )
-    );
+  void addRouteUpdateListener(void Function(String currentPageUri) listener) {
+    if (!_isRouteListenerInitialized) _initRouteUpdateListener();
+    _listeners.add(RouteUpdateListener(listener: listener));
   }
 
-  void removeRouteUpdateListener(void Function(String currentPageUri) listener){
+  void removeRouteUpdateListener(
+    void Function(String currentPageUri) listener,
+  ) {
     _listeners.removeWhere((element) => element.listener == listener);
   }
 
@@ -156,8 +156,8 @@ class AppRouter {
 
   /// Pops screens until the condition
   void popUntilPath(BuildContext context, String targetPath) {
-    while (GoRouter.of(context).canPop() && 
-          GoRouterState.of(context).uri.toString() != targetPath) {
+    while (GoRouter.of(context).canPop() &&
+        GoRouterState.of(context).uri.toString() != targetPath) {
       context.pop();
     }
   }
@@ -165,55 +165,61 @@ class AppRouter {
   // ---- BRANCH 1: HOME ----
   StatefulShellBranch buildHomeBranch() {
     return StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: pageHome,
-          name: pageHome,
-          builder: (context, state) => const HomeScreen(),
-          routes: [
-            GoRoute(
-              path: pageArtDetail, // Relative path matching "art_detail_page"
-              name: "$pageHome/$pageArtDetail", // Unique lookup name identifier string
-              builder: (context, state) => const ArtDetailScreen(),
-            ),
-          ],
+    routes: [
+      GoRoute(
+        path: pageHome,
+        name: pageHome,
+        builder: (context, state) => HomeScreen(
+          onArtworkTap: (artwork) {
+            // Push full path: /art_detail_page
+            context.push("/$pageArtDetail", extra: artwork);
+          },
         ),
-      ],
-    );
+        routes: [
+          GoRoute(
+            parentNavigatorKey: navigatorKey, // Hides bottom navbar by pushing to Root Navigator
+            path: pageArtDetail,
+            name: pageArtDetail,
+            builder: (context, state) => const ArtworkDetailScreen(),
+          ),
+        ],
+      ),
+    ],
+  );
   }
 
   // ---- BRANCH 2: Saved ----
   StatefulShellBranch buildSavedBranch() {
     return StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: pageSaved,
-          name: pageSaved,
-          builder: (context, state) => const SavedScreen(),
-          routes: [
-            GoRoute(
-              path: pageArtDetail, // Relative path matching "art_detail_page"
-              name: "$pageSaved/$pageArtDetail", // Unique lookup name identifier string
-              builder: (context, state) => const ArtDetailScreen(),
+    routes: [
+      GoRoute(
+        path: pageSaved,
+        name: pageSaved,
+        builder: (context, state) => const SavedScreen(),
+        routes: [
+          GoRoute(
+              parentNavigatorKey: navigatorKey, // Hides bottom navbar
+              path: pageArtDetail,
+              name: "$pageSaved/$pageArtDetail",
+              builder: (context, state) {
+                if (state.extra is Map<String, dynamic>) {
+                  final data = state.extra as Map<String, dynamic>;
+                  return SavedDetailScreen(
+                    artwork: data['artwork'] as ArtworkModel?,
+                    index: (data['index'] as int?) ?? 0,
+                  );
+                }
+                return SavedDetailScreen(
+                  artwork: state.extra as ArtworkModel?,
+                );
+              },
             ),
-          ],
-        ),
-      ],
-    );
+        ],
+      ),
+    ],
+  );
   }
 
-  // ---- BRANCH 3: Profile ----
-  StatefulShellBranch buildProfileBranch() {
-    return StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: pageProfile,
-          name: pageProfile,
-          builder: (context, state) => const ProfileScreen(),
-        ),
-      ],
-    );
-  }
 }
 
 class AppPageConfig extends GoRoute {
@@ -223,10 +229,9 @@ class AppPageConfig extends GoRoute {
     super.builder,
     super.pageBuilder,
     this.isCleanLayout = true,
-    this.title = ''
+    this.title = '',
   });
 
   final bool isCleanLayout;
   final String title;
 }
-

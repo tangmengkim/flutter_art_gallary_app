@@ -1,5 +1,6 @@
 import 'package:art_gallary/core/constants/app_constants.dart';
 import 'package:art_gallary/core/router/router.dart';
+import 'package:art_gallary/core/storage/storage_initializer.dart';
 import 'package:art_gallary/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +13,7 @@ void main() async {
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.black, // Android: Status bar background color
+      statusBarColor: Colors.transparent, // Android: Status bar background color
       statusBarIconBrightness: Brightness
           .light, // Android: White icons (so they are visible on black)
       statusBarBrightness:

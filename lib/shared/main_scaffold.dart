@@ -88,13 +88,14 @@ class _MainScaffoldState extends State<MainScaffold> {
         _handleBackNavigation(didPop);
       },
       child: Scaffold(
+        extendBody: true,
         body: KeyedSubtree(
         child: widget.navigationShell,
         ),
         bottomNavigationBar: CustomBottomNavBar(selectedIndex: widget.navigationShell.currentIndex, onItemTapped: (index) async {
           widget.navigationShell.goBranch(
             index,
-            // initialLocation: index == widget.navigationShell.currentIndex,
+            initialLocation: index == widget.navigationShell.currentIndex,
           );
         })
       )
