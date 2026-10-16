@@ -77,16 +77,24 @@ class _CustomBottomNavBarState extends ConsumerState<CustomBottomNavBar>
     if (widget.selectedIndex == index) {
       if (index == 0) {
         final controller = ref.read(homeScrollControllerProvider);
-        if (controller.hasClients) {
-          controller.animateTo(
-            0.0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        }
+        _scrollToUp(controller);
+      } else if (index == 1) {
+        final controller = ref.read(savedScrollControllerProvider);
+        _scrollToUp(controller);
       }
     } else {
       widget.onItemTapped(index);
+    }
+  }
+
+  void _scrollToUp(ScrollController controller) {
+
+    if (controller.hasClients) {
+      controller.animateTo(
+        controller.position.minScrollExtent,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     }
   }
 

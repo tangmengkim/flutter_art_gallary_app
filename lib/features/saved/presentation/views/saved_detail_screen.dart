@@ -49,7 +49,7 @@ class SavedDetailScreen extends ConsumerWidget {
 
     final aspectRatio = hasDimensions ? width / height : null;
 
-    final screenHeight = MediaQuery.sizeOf(context,).height.toInt();
+    final cachedScreenHeight = (MediaQuery.sizeOf(context,).height * 0.7).toInt();
 
     return Scaffold(
       body: CustomScrollView(
@@ -84,6 +84,7 @@ class SavedDetailScreen extends ConsumerWidget {
                           child: hasLocalFile
                               ? Image.file(
                                   File(localUrl),
+                                  cacheHeight: cachedScreenHeight,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
                                       _buildErrorPlaceholder(),
@@ -91,7 +92,7 @@ class SavedDetailScreen extends ConsumerWidget {
                               : CachedNetworkImage(
                                   imageUrl: imageUrl,
                                   fit: BoxFit.cover,
-                                  memCacheHeight: screenHeight,
+                                  memCacheHeight: cachedScreenHeight,
                                   placeholder: (_, __) => const Center(
                                     child: CircularProgressIndicator(
                                       color: _accent,

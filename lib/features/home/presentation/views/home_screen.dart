@@ -71,15 +71,17 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
   }
 
   // Keep as a const or static variable outside the build method
-  static const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 2,
-    crossAxisSpacing: 14,
-    mainAxisSpacing: 18,
-    childAspectRatio: 10 / 16,
-  );
 
   @override
   Widget build(BuildContext context) {
+    final gridCrossAxisCount = MediaQuery.sizeOf(context).width >= 600 ? 3 : 2;
+  final gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: gridCrossAxisCount,
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 18,
+      childAspectRatio: 10 / 16,
+    );
+
     final activeScrollController = ref.watch(homeScrollControllerProvider);
 
     final artworks = ref.watch(homeViewModelProvider.select((s) => s.artworks));
@@ -169,7 +171,7 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
                       padding: EdgeInsets.symmetric(horizontal: 16.w),
                       sliver: SliverGrid.builder(
                         itemCount: artworks.length,
-                        gridDelegate: _gridDelegate,
+                        gridDelegate: gridDelegate,
                         addAutomaticKeepAlives: false,
                         addRepaintBoundaries: true,
                         addSemanticIndexes: false,
@@ -235,6 +237,7 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildFeatured(ArtworkModel artwork) {
+    final cachedHeight = (MediaQuery.sizeOf(context,).height * 0.7).toInt();
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
       child: GestureDetector(
@@ -247,6 +250,7 @@ class _ArtFeedScreenState extends ConsumerState<HomeScreen> {
                 imageUrl: artwork.downloadUrl ?? '',
                 width: double.infinity,
                 height: 240.h,
+                memCacheHeight: cachedHeight,
                 fit: BoxFit.cover,
                 placeholder: (_, __) =>
                     Container(height: 240.h, color: const Color(0xFFE7DED1)),
@@ -382,7 +386,7 @@ class _HeaderSliverAppBar extends StatelessWidget {
       elevation: 11,
       scrolledUnderElevation: 0.5,
       pinned: true,
-      expandedHeight: 150,
+      expandedHeight: 150.spMax,
       automaticallyImplyLeading: false,
       titleSpacing: 20.w,
       title: GestureDetector(
@@ -395,10 +399,10 @@ class _HeaderSliverAppBar extends StatelessWidget {
             );
           }
         },
-        child: const Text(
+        child: Text(
           'ART GALLERY',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 22.spMax,
             fontWeight: FontWeight.w800,
             letterSpacing: 2.2,
           ),
@@ -406,7 +410,7 @@ class _HeaderSliverAppBar extends StatelessWidget {
       ),
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
-          final collapsed = constraints.maxHeight <= kToolbarHeight + 85.h;
+          final collapsed = constraints.maxHeight <= kToolbarHeight + 85.spMax;
 
           return FlexibleSpaceBar(
             collapseMode: CollapseMode.pin,
@@ -502,7 +506,7 @@ class _ArtworkCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenHeight = (MediaQuery.sizeOf(context,).height * 0.7);
     return GestureDetector(
       onTap: onTap,
       child: Column(

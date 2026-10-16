@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:art_gallary/core/constants/scroll_provider.dart';
 import 'package:art_gallary/core/router/router.dart';
 import 'package:art_gallary/features/home/data/models/artwork_model.dart';
 import 'package:art_gallary/features/saved/presentation/view_models/saved_vm.dart';
@@ -17,6 +18,16 @@ class SavedScreen extends ConsumerWidget {
   static const _ink = Color(0xFF292824);
   static const _muted = Color(0xFF82796F);
 
+  void _scrollToUp(ScrollController controller) {
+    if (controller.hasClients) {
+      controller.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedArtworks = ref.watch(
@@ -28,57 +39,56 @@ class SavedScreen extends ConsumerWidget {
 
     final viewModel = ref.read(savedViewModelProvider.notifier);
     final gridCrossAxisCount = MediaQuery.sizeOf(context).width >= 600 ? 3 : 2;
+    final scrollController = ref.watch(savedScrollControllerProvider);
 
     return Scaffold(
       body: CustomScrollView(
+        controller: scrollController,
+        primary: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
-            pinned: false,
-            title: _buildHeader(savedArtworks.length),
-          ),
-          SliverFillRemaining(
-            child: Column(
-              children: [
-                Expanded(
-                  child: isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.secondary,
-                          ),
-                        )
-                      : savedArtworks.isEmpty
-                      ? _buildEmptyState()
-                      : GridView.builder(
-                          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
-                          itemCount: savedArtworks.length,
-                          cacheExtent: 500,
-                          addAutomaticKeepAlives: true,
-                          addRepaintBoundaries: true,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: gridCrossAxisCount,
-                                crossAxisSpacing: 14.w,
-                                mainAxisSpacing: 18.h,
-                                childAspectRatio: 10 / 16,
-                              ),
-                          itemBuilder: (context, index) {
-                            final artwork = savedArtworks[index];
-
-                            return _SavedArtworkCard(
-                              key: ValueKey(artwork.id ?? index),
-                              artwork: artwork,
-                              index: index,
-                              onTap: () =>
-                                  _onArtworkTap(context, artwork, index),
-                              onRemove: () =>
-                                  _onArtworkRemove(context, viewModel, artwork),
-                            );
-                          },
-                        ),
-                ),
-              ],
+            pinned: true,
+            title: GestureDetector(
+              onTap: () => _scrollToUp(scrollController),
+              child: _buildHeader(savedArtworks.length),
             ),
           ),
+
+          if (isLoading)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.secondary),
+              ),
+            )
+          else if (savedArtworks.isEmpty)
+            SliverFillRemaining(hasScrollBody: false, child: _buildEmptyState())
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
+              sliver: SliverGrid.builder(
+                itemCount: savedArtworks.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: gridCrossAxisCount,
+                  crossAxisSpacing: 14.w,
+                  mainAxisSpacing: 18.h,
+                  childAspectRatio: 10 / 16,
+                ),
+                itemBuilder: (context, index) {
+                  final artwork = savedArtworks[index];
+
+                  return _SavedArtworkCard(
+                    key: ValueKey(artwork.id ?? index),
+                    artwork: artwork,
+                    index: index,
+                    onTap: () => _onArtworkTap(context, artwork, index),
+                    onRemove: () =>
+                        _onArtworkRemove(context, viewModel, artwork),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -162,19 +172,19 @@ class SavedScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72.w,
-              height: 72.w,
+              width: 72.spMax,
+              height: 72.spMax,
               decoration: const BoxDecoration(
                 color: Color(0xFFE8DFD1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.bookmark_outline_rounded,
                 color: AppColors.primary,
-                size: 32,
+                size: 32.spMax,
               ),
             ),
-            SizedBox(height: 20.h),
+            const SizedBox(height: 20),
             Text(
               'No saved artworks yet',
               style: TextStyle(
@@ -224,10 +234,9 @@ class _SavedArtworkCardState extends State<_SavedArtworkCard> {
   Widget build(BuildContext context) {
     final imageUrl = widget.artwork.downloadUrl ?? widget.artwork.url ?? '';
     final localUrl = widget.artwork.localUrl;
-    final hasLocalFile = localUrl != null && localUrl.isNotEmpty;
     final author = widget.artwork.author?.trim();
     final artist = (author == null || author.isEmpty) ? 'Unknown' : author;
-    final screenHeight = MediaQuery.sizeOf(context).height.toInt();
+    final screenHeight = (MediaQuery.sizeOf(context,).height * 0.7).toInt();
 
     return RepaintBoundary(
       child: GestureDetector(

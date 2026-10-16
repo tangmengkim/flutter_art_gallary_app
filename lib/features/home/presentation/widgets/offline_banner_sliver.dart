@@ -92,6 +92,7 @@ class _DynamicOfflineBannerDelegate extends SliverPersistentHeaderDelegate {
           decoration: const BoxDecoration(
             color: Color(0xFFE5D8C6),
             border: Border(
+              top: BorderSide(color: AppColors.backgroundColor, width: 0.8),
               bottom: BorderSide(color: Color(0xFFD4C3AE), width: 0.8),
             ),
           ),

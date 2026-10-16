@@ -138,7 +138,7 @@ class ArtworkImageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = artwork.downloadUrl ?? artwork.url ?? '';
-    final screenHeight = MediaQuery.sizeOf(context).height;
+    final screenHeight = (MediaQuery.sizeOf(context,).height * 0.7);
 
     return Stack(
       fit: StackFit.expand,
