@@ -139,15 +139,4 @@ Future<String> deleteArtwork(ArtworkModel artwork) async {
     state = state.copyWith(savedArtworks: updatedList);
   }
 
-  // void _updateDownloadProgress(String id, double progress) {
-  //   final newMap = Map<String, double>.from(state.downloadProgress);
-  //   newMap[id] = progress;
-  //   state = state.copyWith(downloadProgress: newMap);
-  // }
-
-  // void _removeDownloadProgress(String id) {
-  //   final newMap = Map<String, double>.from(state.downloadProgress);
-  //   newMap.remove(id);
-  //   state = state.copyWith(downloadProgress: newMap);
-  // }
 }
